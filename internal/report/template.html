@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTI Threat Report — {{.Meta.GeneratedAt}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0a;--bg2:#141414;--card:#1a1a1a;--text:#f0f0f0;--text2:#aaa;--text3:#777;
+  --border:#fff;--shadow:6px 6px 0 #fff;
+  --p1:#ff0033;--p2:#ff9500;--p3:#00aa00;
+  --accent:#0066ff;--kev:#ff0033;--poc:#9b00ff;
+  --code-bg:#000;--code-text:#00ff41;
+  --radius:4px;
+  --sidebar-w:240px;
+}
+.light{
+  --bg:#f0f0f0;--bg2:#e8e8e8;--card:#fff;--text:#0a0a0a;--text2:#555;--text3:#888;
+  --border:#000;--shadow:6px 6px 0 #000;
+  --code-bg:#0a0a0a;--code-text:#00ff41;
+}
+body{
+  font-family:'IBM Plex Mono','SF Mono','Fira Code',monospace;
+  background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Layout: sidebar + main ── */
+.layout{display:flex;gap:20px;max-width:1280px;margin:0 auto;padding:24px 16px 48px}
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;position:sticky;top:24px;align-self:flex-start;
+  max-height:calc(100vh - 48px);overflow-y:auto;
+}
+.main{flex:1;min-width:0}
+
+/* ── Header ── */
+.header{
+  background:var(--card);border:4px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px 28px;margin-bottom:24px;
+  display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;
+}
+.header h1{font-size:1.6rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;line-height:1.1}
+.header .classification{
+  font-size:.72rem;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:1.5px;margin-top:4px;
+}
+.header-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--text2);margin-top:12px}
+.header-meta span{font-weight:600}
+.toggle{
+  border:3px solid var(--border);background:var(--card);color:var(--text);
+  cursor:pointer;font-size:1rem;font-weight:900;padding:6px 14px;
+  border-radius:var(--radius);box-shadow:3px 3px 0 var(--border);
+  transition:transform .1s;
+}
+.toggle:active{transform:translate(3px,3px);box-shadow:none}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat{
+  background:var(--card);border:4px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:18px 12px;text-align:center;
+}
+.stat .num{font-size:2.4rem;font-weight:900;line-height:1}
+.stat .label{font-size:.66rem;color:var(--text3);margin-top:6px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
+.stat.p1 .num{color:var(--p1)}
+.stat.p2 .num{color:var(--p2)}
+.stat.p3 .num{color:var(--p3)}
+.stat.total .num{color:var(--accent)}
+
+/* ── Source Bar ── */
+.source-bar{
+  background:var(--bg2);border:3px solid var(--border);border-radius:var(--radius);
+  padding:8px 16px;margin-bottom:20px;text-align:center;
+  font-size:.74rem;font-weight:700;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.8px;
+}
+
+/* ── Search ── */
+.search-wrap{position:relative;margin-bottom:16px}
+.search-wrap input{
+  width:100%;padding:14px 16px 14px 44px;
+  background:var(--card);border:4px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-size:.9rem;font-weight:600;outline:none;
+  font-family:inherit;box-shadow:3px 3px 0 var(--border);
+  transition:transform .1s;
+}
+.search-wrap input:focus{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--border)}
+.search-wrap input::placeholder{color:var(--text3)}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1rem;color:var(--text3)}
+
+/* ── Sidebar Filters ── */
+.filter-panel{
+  background:var(--card);border:4px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin-bottom:16px;
+}
+.filter-panel-title{
+  padding:10px 14px;border-bottom:3px solid var(--border);
+  font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+  background:var(--bg2);
+}
+.filter-panel-body{padding:10px 14px}
+.filter-item{
+  display:flex;align-items:center;gap:8px;padding:5px 0;
+  font-size:.76rem;font-weight:600;cursor:pointer;
+}
+.filter-item input[type=checkbox]{
+  width:16px;height:16px;border:2px solid var(--border);
+  cursor:pointer;accent-color:var(--accent);
+}
+.filter-item label{cursor:pointer;color:var(--text2)}
+.filter-item .count{
+  margin-left:auto;font-size:.66rem;font-weight:700;color:var(--text3);
+  background:var(--bg2);padding:1px 6px;border:1px solid var(--border);border-radius:2px;
+}
+.filter-item.active label{color:var(--text);font-weight:700}
+
+.score-range{padding:10px 14px}
+.score-range label{font-size:.66rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--text3);display:block;margin-bottom:8px}
+.score-range-values{display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;color:var(--text2)}
+.score-range input[type=range]{
+  width:100%;margin:6px 0;-webkit-appearance:none;height:6px;
+  background:var(--bg2);border:2px solid var(--border);border-radius:2px;outline:none;
+}
+.score-range input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;
+  background:var(--accent);border:2px solid var(--border);border-radius:2px;cursor:pointer;
+}
+
+/* ── Sector Nav in Sidebar ── */
+.sector-nav-item{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  font-size:.74rem;font-weight:600;color:var(--text2);cursor:pointer;
+  border-left:3px solid transparent;transition:all .1s;
+}
+.sector-nav-item:hover{background:var(--bg2);color:var(--text);border-left-color:var(--accent)}
+.sector-nav-item.active{background:var(--bg2);color:var(--text);border-left-color:var(--accent);font-weight:700}
+.sector-nav-item .nav-count{margin-left:auto;font-size:.66rem;font-weight:700;color:var(--text3)}
+
+/* ── KEV Section ── */
+.kev-section{
+  background:var(--kev);border:4px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:0;margin-bottom:28px;
+}
+.kev-header{
+  background:var(--kev);color:#fff;padding:14px 20px;
+  font-size:.9rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+  display:flex;align-items:center;gap:8px;
+}
+.kev-list{background:var(--card);padding:0}
+.kev-entry{padding:14px 20px;border-bottom:3px solid var(--border)}
+.kev-entry:last-child{border-bottom:none}
+.kev-entry .kev-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kev-id{
+  font-family:inherit;font-weight:900;font-size:.86rem;
+  background:var(--text);color:var(--card);padding:2px 8px;border-radius:2px;
+}
+.stamp{
+  background:var(--kev);color:#fff;padding:2px 8px;
+  font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+  border:2px solid var(--border);border-radius:2px;
+}
+.dday{font-weight:900;font-size:.76rem;padding:2px 8px;border:2px solid var(--border);border-radius:2px}
+.dday.urgent{background:var(--p1);color:#fff}
+.dday.warn{background:var(--p2);color:#fff}
+.dday.ok{background:var(--p3);color:#fff}
+.dday.overdue{background:#000;color:var(--kev);border-color:var(--kev)}
+.kev-prod{color:var(--text2);font-size:.82rem;margin-top:6px;font-weight:600}
+.kev-vuln{color:var(--text);font-size:.86rem;margin-top:4px;font-weight:700}
+.kev-action{
+  font-size:.76rem;color:var(--text2);margin-top:8px;line-height:1.5;
+  padding:8px 12px;background:var(--bg2);border:2px solid var(--border);border-radius:2px;
+}
+
+/* ── Sector ── */
+.sector{margin-bottom:24px}
+.sector-header{
+  background:var(--card);border:4px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px 20px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-weight:900;font-size:.92rem;text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:0;
+}
+.sector-count{background:var(--accent);color:#fff;padding:2px 10px;font-size:.72rem;border:2px solid var(--border);border-radius:2px}
+.sector-p1-badge{background:var(--p1);color:#fff;padding:2px 10px;font-size:.72rem;border:2px solid var(--border);border-radius:2px}
+.sector-kev-badge{background:#000;color:var(--kev);padding:2px 10px;font-size:.72rem;border:2px solid var(--border);border-radius:2px}
+
+/* ── CVE Card ── */
+.cve-card{
+  background:var(--card);border-left:4px solid var(--border);
+  border-right:4px solid var(--border);border-bottom:4px solid var(--border);
+  transition:background .15s;
+}
+.cve-card:hover{background:var(--bg2)}
+.cve-card:last-of-type{border-radius:0 0 var(--radius) var(--radius)}
+.cve-card.p1{border-left:8px solid var(--p1)}
+.cve-card.p2{border-left:8px solid var(--p2)}
+.cve-card.p3{border-left:8px solid var(--p3)}
+summary{
+  padding:14px 20px;cursor:pointer;font-weight:700;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.82rem;
+  transition:background .1s;
+}
+summary:hover{background:var(--bg2)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'+';margin-right:2px;font-weight:900;font-size:1rem;color:var(--accent);transition:transform .15s;display:inline-block;width:16px}
+details[open] summary::before{content:'-'}
+.badge{
+  display:inline-block;padding:2px 8px;border:2px solid var(--border);border-radius:2px;
+  color:#fff;font-size:.62rem;font-weight:900;white-space:nowrap;letter-spacing:.5px;
+  text-transform:uppercase;
+}
+.badge.p1{background:var(--p1)}
+.badge.p2{background:var(--p2)}
+.badge.p3{background:var(--p3)}
+.badge.kev{background:#000;color:var(--kev)}
+.badge.poc{background:var(--poc)}
+.badge.ghadv{background:var(--accent)}
+.badge.gh{background:#9333ea}
+.badge.cat{background:#006666;color:#fff}
+.cve-id{font-family:inherit;font-weight:900;font-size:.86rem}
+.cve-title{font-size:.78rem;color:var(--text2);width:100%;margin-top:4px;line-height:1.5;font-weight:600}
+.cve-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.cve-meta .meta-tag{font-size:.66rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+
+/* ── Card Body ── */
+.body{padding:16px 20px;border-top:3px solid var(--border);overflow:hidden}
+.body-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{font-size:.8rem;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.field.full{grid-column:1/-1}
+.field label{display:block;font-size:.64rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;font-weight:900}
+.field p{color:var(--text2);line-height:1.6;font-size:.8rem;overflow-wrap:anywhere;word-break:break-word}
+.field a{color:var(--accent);word-break:break-all;overflow-wrap:anywhere;font-size:.72rem;line-height:1.6;display:inline-block;margin:2px 0;padding:2px 6px;border:1px solid var(--border);border-radius:2px;font-weight:600;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.field a:hover{background:var(--accent);color:#fff}
+.tag{display:inline-block;background:var(--bg2);color:var(--text);padding:2px 8px;border:2px solid var(--border);border-radius:2px;font-size:.68rem;margin:2px;font-weight:700;font-family:inherit}
+.score-box{display:inline-block;padding:4px 12px;border:2px solid var(--border);border-radius:2px;font-size:.78rem;font-weight:900;font-family:inherit}
+.score-box.critical{background:var(--p1);color:#fff}
+.score-box.high{background:var(--p2);color:#fff}
+
+.body pre{background:var(--code-bg);border:2px solid var(--border);border-radius:2px;padding:10px 12px;overflow-x:auto;font-size:.7rem;margin:8px 0;color:var(--code-text);line-height:1.5;font-family:inherit;max-width:100%}
+.body code{background:var(--bg2);color:var(--accent);padding:2px 6px;border:1px solid var(--border);border-radius:2px;font-size:.74rem;font-family:inherit;word-break:break-all}
+.body pre code{background:none;color:var(--code-text);border:none;padding:0;word-break:normal}
+
+/* ── Markdown rendered description ── */
+.field p h3{font-size:.88rem;font-weight:900;color:var(--text);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+.field p h4{font-size:.8rem;font-weight:700;color:var(--accent);margin:8px 0 4px}
+.field p ul{margin:6px 0;padding-left:20px;list-style:none}
+.field p li{font-size:.76rem;color:var(--text2);line-height:1.6;margin:3px 0}
+.field p li::before{content:'▸ ';color:var(--accent);font-weight:900}
+.field p strong{color:var(--text);font-weight:700}
+.field p p{margin:6px 0}
+.field p a{display:inline !important}
+.field p br{display:none}
+
+/* ── End of Brief ── */
+.end-brief{text-align:center;padding:20px;font-size:.76rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px}
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty h2{font-size:1.2rem;font-weight:900;text-transform:uppercase;margin-bottom:8px}
+.hidden{display:none!important}
+
+/* ── Mobile ── */
+@media(max-width:1023px){
+  .layout{display:block;padding:16px 10px 32px}
+  .sidebar{
+    width:100%;position:static;max-height:none;margin-bottom:16px;
+    display:flex;gap:12px;overflow-x:auto;flex-wrap:nowrap;
+  }
+  .sidebar .filter-panel{min-width:200px;flex-shrink:0}
+  .sidebar .filter-panel:nth-child(1){order:2}
+  .sidebar .filter-panel:nth-child(2){order:1}
+  .sidebar .filter-panel:nth-child(3){order:3}
+}
+@media(max-width:640px){
+  .sidebar{flex-direction:column;overflow-x:visible}
+  .sidebar .filter-panel{min-width:auto}
+  .header{padding:18px 16px}
+  .header h1{font-size:1.2rem}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat .num{font-size:1.8rem}
+  .body-grid{grid-template-columns:1fr}
+  .body{padding:12px 14px;overflow:hidden}
+  .field{font-size:.76rem}
+  .field p{font-size:.76rem;line-height:1.5}
+  .field a{font-size:.68rem;padding:2px 5px}
+  summary{padding:10px 14px;font-size:.76rem}
+  .kev-entry{padding:10px 14px}
+  .header-meta{font-size:.66rem;gap:4px 8px}
+  .cve-title{font-size:.72rem}
+  .badge{font-size:.56rem;padding:1px 6px}
+  .tag{font-size:.62rem;padding:1px 6px}
+  .kev-action{font-size:.7rem;padding:6px 10px}
+  .kev-prod{font-size:.74rem}
+  .kev-vuln{font-size:.8rem}
+}
+</style>
+</head>
+<body class="">
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+  <!-- Severity Filter -->
+  <div class="filter-panel">
+    <div class="filter-panel-title">SEVERITY</div>
+    <div class="filter-panel-body">
+      <div class="filter-item active" data-filter="severity" data-value="P1">
+        <input type="checkbox" id="sev-p1" checked>
+        <label for="sev-p1">P1 CRITICAL</label>
+        <span class="count">{{.Meta.P1}}</span>
+      </div>
+      <div class="filter-item active" data-filter="severity" data-value="P2">
+        <input type="checkbox" id="sev-p2" checked>
+        <label for="sev-p2">P2 HIGH</label>
+        <span class="count">{{.Meta.P2}}</span>
+      </div>
+      <div class="filter-item active" data-filter="severity" data-value="P3">
+        <input type="checkbox" id="sev-p3" checked>
+        <label for="sev-p3">P3 STANDARD</label>
+        <span class="count">{{.Meta.P3}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Filters -->
+  <div class="filter-panel">
+    <div class="filter-panel-title">FILTERS</div>
+    <div class="filter-panel-body">
+      <div class="filter-item" data-filter="flag" data-value="kev">
+        <input type="checkbox" id="flag-kev">
+        <label for="flag-kev">KEV ONLY</label>
+      </div>
+      <div class="filter-item" data-filter="flag" data-value="poc">
+        <input type="checkbox" id="flag-poc">
+        <label for="flag-poc">PoC ONLY</label>
+      </div>
+    </div>
+    <div class="filter-panel-title">SOURCE</div>
+    <div class="filter-panel-body">
+      <div class="filter-item active" data-filter="source" data-value="ghadv">
+        <input type="checkbox" id="src-ghadv" checked>
+        <label for="src-ghadv">GH ADVISORY</label>
+      </div>
+      <div class="filter-item active" data-filter="source" data-value="gh-">
+        <input type="checkbox" id="src-gh" checked>
+        <label for="src-gh">GH PoC REPOS</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Filter -->
+  <div class="filter-panel">
+    <div class="filter-panel-title">CATEGORY</div>
+    <div class="filter-panel-body" id="category-filters">
+      <!-- Populated by JS based on data-category attributes -->
+    </div>
+  </div>
+
+  <!-- Score Range -->
+  <div class="filter-panel">
+    <div class="filter-panel-title">SCORE RANGE</div>
+    <div class="score-range">
+      <label>MIN: <span id="score-min-val">0.0</span></label>
+      <input type="range" id="score-min" min="0" max="10" step="0.5" value="0">
+      <div class="score-range-values">
+        <span>0.0</span><span>10.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sector Nav -->
+  <div class="filter-panel">
+    <div class="filter-panel-title">SECTORS</div>
+    <div class="filter-panel-body" style="padding:6px 0">
+      <div class="sector-nav-item active" data-sector="all" onclick="filterSector('all')">
+        ALL <span class="nav-count">{{.Meta.TotalUnique}}</span>
+      </div>
+      {{range $i, $s := .Sectors}}
+      <div class="sector-nav-item" data-sector="sec-{{$i}}" onclick="filterSector('sec-{{$i}}')">
+        {{$s.Name}} <span class="nav-count">{{$s.Count}}</span>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ── -->
+<div class="main">
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1>THREAT INTEL BRIEF</h1>
+    <div class="classification">CLASSIFICATION: UNCLASSIFIED // {{.Meta.WindowHours}}H WINDOW</div>
+    <div class="header-meta">
+      <span>DATE: {{.Meta.GeneratedAt}}</span>
+      <span>TOTAL: {{.Meta.TotalUnique}} CVE</span>
+      <span>KEV: {{len .KEVRecent}} RECENT</span>
+    </div>
+  </div>
+  <button class="toggle" onclick="document.body.classList.toggle('light')" title="Toggle light mode">◐</button>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat p1"><div class="num">{{.Meta.P1}}</div><div class="label">P1 CRITICAL</div></div>
+  <div class="stat p2"><div class="num">{{.Meta.P2}}</div><div class="label">P2 HIGH</div></div>
+  <div class="stat p3"><div class="num">{{.Meta.P3}}</div><div class="label">P3 STANDARD</div></div>
+  <div class="stat total"><div class="num">{{.Meta.TotalUnique}}</div><div class="label">TOTAL</div></div>
+</div>
+
+<!-- Source Bar -->
+<div class="source-bar">SOURCES: {{.Meta.Sources}}</div>
+
+<!-- Search -->
+<div class="search-wrap">
+  <span class="search-icon">⌕</span>
+  <input type="text" id="search" placeholder="SEARCH CVE, PRODUCT, CWE..." oninput="applyFilters()">
+</div>
+
+<!-- KEV Section -->
+{{if .KEVRecent}}
+<div class="kev-section">
+  <div class="kev-header">▲ ACTIVE EXPLOITATION — CISA KEV ({{len .KEVRecent}})</div>
+  <div class="kev-list">
+    {{range .KEVRecent}}
+    <div class="kev-entry">
+      <div class="kev-top">
+        <span class="kev-id">{{.CVEID}}</span>
+        <span class="stamp">EXPLOITED</span>
+        {{if lt .DaysLeft 0}}<span class="dday overdue">OVERDUE</span>
+        {{else if eq .DaysLeft 0}}<span class="dday urgent">D-DAY</span>
+        {{else if le .DaysLeft 3}}<span class="dday urgent">D-{{.DaysLeft}}</span>
+        {{else if le .DaysLeft 7}}<span class="dday warn">D-{{.DaysLeft}}</span>
+        {{else}}<span class="dday ok">D-{{.DaysLeft}}</span>
+        {{end}}
+        {{if .Score}}<span class="score-box {{if ge .Score 9.0}}critical{{else}}high{{end}}">{{printf "%.1f" .Score}}</span>{{end}}
+        {{if .HasPoC}}<span class="badge poc">POC</span>{{end}}
+        {{if .Category}}<span class="badge cat">{{upper .Category}}</span>{{end}}
+      </div>
+      <div class="kev-vuln">{{.VulnName}}</div>
+      <div class="kev-prod">VENDOR: {{.VendorProduct}} | ADDED: {{.DateAdded}} | DUE: {{.DueDate}}</div>
+      {{if .Product}}<div class="kev-prod">PRODUCT: {{.Product}} ({{upper .Ecosystem}})</div>{{end}}
+      {{if .CVSSVector}}<div class="kev-prod">CVSS: <code>{{.CVSSVector}}</code></div>{{end}}
+      {{if .VulnRange}}<div class="kev-prod">AFFECTED: {{.VulnRange}}{{if .PatchedVer}} → FIX: {{.PatchedVer}}{{end}}</div>{{end}}
+      {{if gt .EPSSPct 0.0}}<div class="kev-prod">EPSS: {{printf "%.3f" (mul .EPSSPct 100)}}% (pct: {{printf "%.1f" (mul .EPSSPctile 100)}})</div>{{end}}
+      {{if .CWE}}<div class="kev-prod">CWE: {{range .CWE}}<span class="tag">{{.}}</span> {{end}}</div>{{end}}
+      {{if .DescriptionHTML}}<div class="kev-action" style="margin-top:8px"><strong style="color:var(--accent);font-size:.64rem;text-transform:uppercase;letter-spacing:1px">DESCRIPTION</strong><br>{{safeHTML .DescriptionHTML}}</div>{{end}}
+      {{if .NVDURL}}<div class="kev-prod" style="margin-top:6px"><a href="{{.NVDURL}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:.74rem;text-decoration:none;border-bottom:2px solid var(--accent)">NVD ↗</a>{{end}}
+      {{if .GHSAURL}} <a href="{{.GHSAURL}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:.74rem;text-decoration:none;border-bottom:2px solid var(--accent);margin-left:8px">GHSA ↗</a>{{end}}
+      {{if .ExploitRefs}}
+      {{range .ExploitRefs}}<a href="{{.}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;font-size:.72rem;display:block;margin-top:4px;text-decoration:none;border-bottom:1px solid var(--accent)">⚡ {{.}}</a>{{end}}
+      {{end}}
+      {{if .PoCLinks}}
+      {{range .PoCLinks}}<a href="{{.}}" target="_blank" rel="noopener" style="color:var(--poc);font-weight:600;font-size:.72rem;display:block;margin-top:4px;text-decoration:none;border-bottom:1px solid var(--poc)">🔬 {{.}}</a>{{end}}
+      {{end}}
+      {{if .NVDURL}}</div>{{end}}
+      <div class="kev-action"><strong style="color:var(--p1);font-size:.64rem;text-transform:uppercase;letter-spacing:1px">REQUIRED ACTION</strong><br>{{.RequiredAction}}</div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<!-- Sectors -->
+{{range $i, $s := .Sectors}}
+<div class="sector" id="sec-{{$i}}">
+  <div class="sector-header">
+    <span>{{$s.Name}}</span>
+    <span class="sector-count">{{$s.Count}}</span>
+    {{if gt $s.P1Count 0}}<span class="sector-p1-badge">{{$s.P1Count}} P1</span>{{end}}
+    {{if gt $s.KEVCount 0}}<span class="sector-kev-badge">{{$s.KEVCount}} KEV</span>{{end}}
+    {{if gt $s.PoCCount 0}}<span class="badge poc">{{$s.PoCCount}} POC</span>{{end}}
+  </div>
+
+  {{range .CVEs}}
+  <details class="cve-card {{if eq .Priority "P1"}}p1{{else if eq .Priority "P2"}}p2{{else}}p3{{end}}" data-sector="sec-{{$i}}" data-source="{{.Source}}" data-priority="{{.Priority}}" data-kev="{{.InKEV}}" data-poc="{{.HasPoC}}" data-score="{{printf "%.1f" .Score}}" data-category="{{.Category}}" data-search="{{lower .ID}} {{lower .Product}} {{lower (join .CWE ",")}} {{lower .Title}} {{lower .Category}}">
+    <summary>
+      {{if eq .Priority "P1"}}<span class="badge p1">P1</span>{{else if eq .Priority "P2"}}<span class="badge p2">P2</span>{{else}}<span class="badge p3">P3</span>{{end}}
+      {{if .InKEV}}<span class="badge kev">KEV</span>{{end}}
+      {{if .HasPoC}}<span class="badge poc">POC</span>{{end}}
+      {{if hasPrefix .Source "ghadv"}}<span class="badge ghadv">GH-ADV</span>{{else if hasPrefix .Source "gh-"}}<span class="badge gh">GH</span>{{end}}
+      {{if .Category}}<span class="badge cat">{{upper .Category}}</span>{{end}}
+      <span class="cve-id">{{.ID}}</span>
+      <span class="cve-title">{{.Title}}</span>
+      <div class="cve-meta">
+        {{if .Product}}<span class="meta-tag">{{.Product}}</span>{{end}}
+        {{if .Score}}<span class="meta-tag">SCORE: {{printf "%.1f" .Score}}</span>{{end}}
+        {{if .Ecosystem}}<span class="meta-tag">{{upper .Ecosystem}}</span>{{end}}
+      </div>
+    </summary>
+    <div class="body">
+      <div class="body-grid">
+        <div class="field full">
+          <label>DESCRIPTION</label>
+          <p>{{if .DescriptionHTML}}{{safeHTML .DescriptionHTML}}{{else}}{{.Description}}{{end}}</p>
+        </div>
+        {{if .Product}}
+        <div class="field"><label>PRODUCT</label><p>{{.Product}}</p></div>
+        {{end}}
+        {{if .Score}}
+        <div class="field">
+          <label>CVSS SCORE</label>
+          <p><span class="score-box {{if ge .Score 9.0}}critical{{else}}high{{end}}">{{printf "%.1f" .Score}} {{.Severity}}</span></p>
+        </div>
+        {{end}}
+        {{if .CVSSVector}}
+        <div class="field full"><label>CVSS VECTOR</label><p><code>{{.CVSSVector}}</code></p></div>
+        {{end}}
+        {{if .VulnRange}}
+        <div class="field">
+          <label>AFFECTED VERSIONS</label>
+          <p>{{.VulnRange}}{{if .PatchedVer}} → FIX: {{.PatchedVer}}{{end}}</p>
+        </div>
+        {{end}}
+        {{if gt .EPSSPct 0.0}}
+        <div class="field">
+          <label>EPSS</label>
+          <p>{{printf "%.3f" (mul .EPSSPct 100)}}% (pct: {{printf "%.1f" (mul .EPSSPctile 100)}})</p>
+        </div>
+        {{end}}
+        {{if .CWE}}
+        <div class="field full"><label>CWE</label><p>{{range .CWE}}<span class="tag">{{.}}</span> {{end}}</p></div>
+        {{end}}
+        {{if .CWENames}}
+        <div class="field full"><label>CWE DESCRIPTION</label><p>{{range .CWENames}}{{.}}{{end}}</p></div>
+        {{end}}
+        {{if .Published}}
+        <div class="field"><label>PUBLISHED</label><p>{{.Published}}</p></div>
+        {{end}}
+        {{if .NVDURL}}
+        <div class="field"><label>NVD</label><p><a href="{{.NVDURL}}" target="_blank" rel="noopener">NVD ↗</a></p></div>
+        {{end}}
+        {{if .GHSAURL}}
+        <div class="field"><label>GH ADVISORY</label><p><a href="{{.GHSAURL}}" target="_blank" rel="noopener">GHSA ↗</a></p></div>
+        {{end}}
+        {{if .ExploitRefs}}
+        <div class="field full">
+          <label>EXPLOIT / POC</label>
+          <p>{{range .ExploitRefs}}<a href="{{.}}" target="_blank" rel="noopener">⚡ {{.}}</a>{{end}}</p>
+          <p>{{range .PoCLinks}}<a href="{{.}}" target="_blank" rel="noopener">🔬 {{.}}</a>{{end}}</p>
+        </div>
+        {{end}}
+        {{if .References}}
+        <div class="field full"><label>REFERENCES</label><p>{{range .References}}<a href="{{.}}" target="_blank" rel="noopener">📎 {{.}}</a>{{end}}</p></div>
+        {{end}}
+      </div>
+    </div>
+  </details>
+  {{end}}
+</div>
+{{end}}
+
+<div class="end-brief">END OF BRIEF — {{.Meta.TotalUnique}} ASSETS TRACKED // {{.Meta.Sources}}</div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── Build category filter dynamically ──
+var categoryCounts = {};
+document.querySelectorAll('.cve-card').forEach(function(c) {
+  var cat = c.getAttribute('data-category') || 'Other';
+  categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+});
+var catContainer = document.getElementById('category-filters');
+var sortedCats = Object.keys(categoryCounts).sort(function(a, b) {
+  return categoryCounts[b] - categoryCounts[a];
+});
+sortedCats.forEach(function(cat) {
+  var div = document.createElement('div');
+  div.className = 'filter-item active';
+  div.setAttribute('data-filter', 'category');
+  div.setAttribute('data-value', cat);
+  div.innerHTML = '<input type="checkbox" id="cat-' + cat.replace(/[^a-z0-9]/gi,'') + '" checked>' +
+    '<label for="cat-' + cat.replace(/[^a-z0-9]/gi,'') + '">' + cat.toUpperCase() + '</label>' +
+    '<span class="count">' + categoryCounts[cat] + '</span>';
+  catContainer.appendChild(div);
+  div.querySelector('input').addEventListener('change', applyFilters);
+});
+
+// ── Combined filter logic ──
+function applyFilters() {
+  var q = document.getElementById('search').value.toLowerCase();
+  var activeSector = document.querySelector('.sector-nav-item.active');
+  var sectorVal = activeSector ? activeSector.getAttribute('data-sector') : 'all';
+
+  // Severity checkboxes
+  var sevP1 = document.getElementById('sev-p1').checked;
+  var sevP2 = document.getElementById('sev-p2').checked;
+  var sevP3 = document.getElementById('sev-p3').checked;
+  // Flag checkboxes
+  var kevOnly = document.getElementById('flag-kev').checked;
+  var pocOnly = document.getElementById('flag-poc').checked;
+  // Source checkboxes
+  var srcGhadv = document.getElementById('src-ghadv').checked;
+  var srcGh = document.getElementById('src-gh').checked;
+  // Score min
+  var scoreMin = parseFloat(document.getElementById('score-min').value);
+  // Category checkboxes
+  var activeCats = {};
+  document.querySelectorAll('[data-filter="category"]').forEach(function(item) {
+    var cb = item.querySelector('input[type=checkbox]');
+    if (cb && cb.checked) activeCats[item.getAttribute('data-value')] = true;
+  });
+
+  document.querySelectorAll('.cve-card').forEach(function(c) {
+    var show = true;
+    // Search
+    if (q.length > 0) {
+      var text = c.getAttribute('data-search') || '';
+      if (text.indexOf(q) === -1) show = false;
+    }
+    // Sector
+    if (show && sectorVal !== 'all') {
+      if (c.getAttribute('data-sector') !== sectorVal) show = false;
+    }
+    // Severity
+    if (show) {
+      var pri = c.getAttribute('data-priority');
+      if (pri === 'P1' && !sevP1) show = false;
+      if (pri === 'P2' && !sevP2) show = false;
+      if (pri === 'P3' && !sevP3) show = false;
+    }
+    // KEV only
+    if (show && kevOnly && c.getAttribute('data-kev') !== 'true') show = false;
+    // PoC only
+    if (show && pocOnly && c.getAttribute('data-poc') !== 'true') show = false;
+    // Source
+    if (show) {
+      var src = c.getAttribute('data-source') || '';
+      if (src.indexOf('ghadv') >= 0 && !srcGhadv) show = false;
+      if (src.indexOf('gh-') >= 0 && !srcGh) show = false;
+    }
+    // Score
+    if (show) {
+      var sc = parseFloat(c.getAttribute('data-score') || '0');
+      if (sc < scoreMin) show = false;
+    }
+    // Category
+    if (show) {
+      var cat = c.getAttribute('data-category') || 'Other';
+      if (!activeCats[cat]) show = false;
+    }
+    c.classList.toggle('hidden', !show);
+  });
+
+  // Hide empty sectors
+  document.querySelectorAll('.sector').forEach(function(s) {
+    var vis = s.querySelectorAll('.cve-card:not(.hidden)');
+    s.style.display = vis.length ? '' : 'none';
+  });
+}
+
+// ── Sector nav ──
+function filterSector(sec) {
+  document.querySelectorAll('.sector-nav-item').forEach(function(n) {
+    n.classList.toggle('active', n.getAttribute('data-sector') === sec);
+  });
+  applyFilters();
+}
+
+// ── Wire up all filter inputs ──
+document.querySelectorAll('.filter-item input[type=checkbox]').forEach(function(cb) {
+  cb.addEventListener('change', applyFilters);
+});
+document.getElementById('score-min').addEventListener('input', function() {
+  document.getElementById('score-min-val').textContent = parseFloat(this.value).toFixed(1);
+  applyFilters();
+});
+</script>
+</body>
+</html>
