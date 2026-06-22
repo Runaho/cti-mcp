@@ -465,7 +465,6 @@ details[open] summary::before{content:'-'}
       {{if .PoCLinks}}
       {{range .PoCLinks}}<a href="{{.}}" target="_blank" rel="noopener" style="color:var(--poc);font-weight:600;font-size:.72rem;display:block;margin-top:4px;text-decoration:none;border-bottom:1px solid var(--poc)">🔬 {{.}}</a>{{end}}
       {{end}}
-      {{if .NVDURL}}</div>{{end}}
       <div class="kev-action"><strong style="color:var(--p1);font-size:.64rem;text-transform:uppercase;letter-spacing:1px">REQUIRED ACTION</strong><br>{{.RequiredAction}}</div>
     </div>
     {{end}}
@@ -475,14 +474,14 @@ details[open] summary::before{content:'-'}
 
 <!-- Sectors -->
 {{range $i, $s := .Sectors}}
-<div class="sector" id="sec-{{$i}}">
-  <div class="sector-header">
+<details class="sector" id="sec-{{$i}}" open>
+  <summary class="sector-header">
     <span>{{$s.Name}}</span>
     <span class="sector-count">{{$s.Count}}</span>
     {{if gt $s.P1Count 0}}<span class="sector-p1-badge">{{$s.P1Count}} P1</span>{{end}}
     {{if gt $s.KEVCount 0}}<span class="sector-kev-badge">{{$s.KEVCount}} KEV</span>{{end}}
     {{if gt $s.PoCCount 0}}<span class="badge poc">{{$s.PoCCount}} POC</span>{{end}}
-  </div>
+  </summary>
 
   {{range .CVEs}}
   <details class="cve-card {{if eq .Priority "P1"}}p1{{else if eq .Priority "P2"}}p2{{else}}p3{{end}}" data-sector="sec-{{$i}}" data-source="{{.Source}}" data-priority="{{.Priority}}" data-kev="{{.InKEV}}" data-poc="{{.HasPoC}}" data-score="{{printf "%.1f" .Score}}" data-category="{{.Category}}" data-search="{{lower .ID}} {{lower .Product}} {{lower (join .CWE ",")}} {{lower .Title}} {{lower .Category}}">
@@ -559,7 +558,7 @@ details[open] summary::before{content:'-'}
     </div>
   </details>
   {{end}}
-</div>
+</details>
 {{end}}
 
 <div class="end-brief">END OF BRIEF — {{.Meta.TotalUnique}} ASSETS TRACKED // {{.Meta.Sources}}</div>
@@ -685,6 +684,7 @@ document.getElementById('score-min').addEventListener('input', function() {
   document.getElementById('score-min-val').textContent = parseFloat(this.value).toFixed(1);
   applyFilters();
 });
+applyFilters();
 </script>
 </body>
 </html>
