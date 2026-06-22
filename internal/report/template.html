@@ -20,7 +20,7 @@
   --border:#000;--shadow:6px 6px 0 #000;
   --code-bg:#0a0a0a;--code-text:#00ff41;
 }
-body{
+body{ 
   font-family:'IBM Plex Mono','SF Mono','Fira Code',monospace;
   background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;
   -webkit-font-smoothing:antialiased;
@@ -336,6 +336,10 @@ details[open] summary::before{content:'-'}
     </div>
     <div class="filter-panel-title">SOURCE</div>
     <div class="filter-panel-body">
+      <div class="filter-item active" data-filter="source" data-value="nvd">
+        <input type="checkbox" id="src-nvd" checked>
+        <label for="src-nvd">NVD</label>
+      </div>
       <div class="filter-item active" data-filter="source" data-value="ghadv">
         <input type="checkbox" id="src-ghadv" checked>
         <label for="src-ghadv">GH ADVISORY</label>
@@ -343,6 +347,14 @@ details[open] summary::before{content:'-'}
       <div class="filter-item active" data-filter="source" data-value="gh-">
         <input type="checkbox" id="src-gh" checked>
         <label for="src-gh">GH PoC REPOS</label>
+      </div>
+      <div class="filter-item active" data-filter="source" data-value="osv">
+        <input type="checkbox" id="src-osv" checked>
+        <label for="src-osv">OSV</label>
+      </div>
+      <div class="filter-item active" data-filter="source" data-value="kev">
+        <input type="checkbox" id="src-kev" checked>
+        <label for="src-kev">CISA KEV</label>
       </div>
     </div>
   </div>
@@ -419,8 +431,8 @@ details[open] summary::before{content:'-'}
 
 <!-- KEV Section -->
 {{if .KEVRecent}}
-<div class="kev-section">
-  <div class="kev-header">▲ ACTIVE EXPLOITATION — CISA KEV ({{len .KEVRecent}})</div>
+<details class="kev-section" open>
+  <summary class="kev-header">▲ ACTIVE EXPLOITATION — CISA KEV ({{len .KEVRecent}})</summary>
   <div class="kev-list">
     {{range .KEVRecent}}
     <div class="kev-entry">
@@ -445,7 +457,7 @@ details[open] summary::before{content:'-'}
       {{if gt .EPSSPct 0.0}}<div class="kev-prod">EPSS: {{printf "%.3f" (mul .EPSSPct 100)}}% (pct: {{printf "%.1f" (mul .EPSSPctile 100)}})</div>{{end}}
       {{if .CWE}}<div class="kev-prod">CWE: {{range .CWE}}<span class="tag">{{.}}</span> {{end}}</div>{{end}}
       {{if .DescriptionHTML}}<div class="kev-action" style="margin-top:8px"><strong style="color:var(--accent);font-size:.64rem;text-transform:uppercase;letter-spacing:1px">DESCRIPTION</strong><br>{{safeHTML .DescriptionHTML}}</div>{{end}}
-      {{if .NVDURL}}<div class="kev-prod" style="margin-top:6px"><a href="{{.NVDURL}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:.74rem;text-decoration:none;border-bottom:2px solid var(--accent)">NVD ↗</a>{{end}}
+      {{if .NVDURL}}<div class="kev-prod" style="margin-top:6px"><a href="{{.NVDURL}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:.74rem;text-decoration:none;border-bottom:2px solid var(--accent)">NVD ↗</a></div>{{end}}
       {{if .GHSAURL}} <a href="{{.GHSAURL}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:.74rem;text-decoration:none;border-bottom:2px solid var(--accent);margin-left:8px">GHSA ↗</a>{{end}}
       {{if .ExploitRefs}}
       {{range .ExploitRefs}}<a href="{{.}}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;font-size:.72rem;display:block;margin-top:4px;text-decoration:none;border-bottom:1px solid var(--accent)">⚡ {{.}}</a>{{end}}
@@ -458,7 +470,7 @@ details[open] summary::before{content:'-'}
     </div>
     {{end}}
   </div>
-</div>
+</details>
 {{end}}
 
 <!-- Sectors -->
@@ -478,7 +490,7 @@ details[open] summary::before{content:'-'}
       {{if eq .Priority "P1"}}<span class="badge p1">P1</span>{{else if eq .Priority "P2"}}<span class="badge p2">P2</span>{{else}}<span class="badge p3">P3</span>{{end}}
       {{if .InKEV}}<span class="badge kev">KEV</span>{{end}}
       {{if .HasPoC}}<span class="badge poc">POC</span>{{end}}
-      {{if hasPrefix .Source "ghadv"}}<span class="badge ghadv">GH-ADV</span>{{else if hasPrefix .Source "gh-"}}<span class="badge gh">GH</span>{{end}}
+      {{if hasPrefix .Source "nvd"}}<span class="badge ghadv">NVD</span>{{else if hasPrefix .Source "ghadv"}}<span class="badge ghadv">GH-ADV</span>{{else if hasPrefix .Source "gh-"}}<span class="badge gh">GH</span>{{else if hasPrefix .Source "osv"}}<span class="badge ghadv">OSV</span>{{else if hasPrefix .Source "kev"}}<span class="badge kev">KEV</span>{{end}}
       {{if .Category}}<span class="badge cat">{{upper .Category}}</span>{{end}}
       <span class="cve-id">{{.ID}}</span>
       <span class="cve-title">{{.Title}}</span>
@@ -592,8 +604,11 @@ function applyFilters() {
   var kevOnly = document.getElementById('flag-kev').checked;
   var pocOnly = document.getElementById('flag-poc').checked;
   // Source checkboxes
+  var srcNvd = document.getElementById('src-nvd').checked;
   var srcGhadv = document.getElementById('src-ghadv').checked;
   var srcGh = document.getElementById('src-gh').checked;
+  var srcOsv = document.getElementById('src-osv').checked;
+  var srcKev = document.getElementById('src-kev').checked;
   // Score min
   var scoreMin = parseFloat(document.getElementById('score-min').value);
   // Category checkboxes
@@ -628,8 +643,11 @@ function applyFilters() {
     // Source
     if (show) {
       var src = c.getAttribute('data-source') || '';
+      if (src.indexOf('nvd') >= 0 && !srcNvd) show = false;
       if (src.indexOf('ghadv') >= 0 && !srcGhadv) show = false;
       if (src.indexOf('gh-') >= 0 && !srcGh) show = false;
+      if (src.indexOf('osv') >= 0 && !srcOsv) show = false;
+      if (src.indexOf('kev') >= 0 && !srcKev) show = false;
     }
     // Score
     if (show) {

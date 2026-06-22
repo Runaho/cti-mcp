@@ -68,3 +68,50 @@ func TestRenderWithRealData(t *testing.T) {
 		t.Error("no CVE IDs in report")
 	}
 }
+
+func TestMd2htmlXSS(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"script tag", `<script>alert(1)</script>`},
+		{"img onerror", `<img src=x onerror=alert(1)>`},
+		{"svg onload", `<svg onload=alert(1)>`},
+		{"javascript URL", `[click](javascript:alert(1))`},
+		{"inline event", `<a href="x" onclick="alert(1)">click</a>`},
+		{"escaped quotes", `<input value="\" onmouseover=\"alert(1)">`},
+		{"markdown with XSS", `**bold** <script>alert(1)</script> text`},
+		{"code block XSS", "```html\n<script>alert(1)</script>\n```"},
+		{"inline code XSS", "`<script>alert(1)</script>`"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := md2html(tt.input)
+			lower := strings.ToLower(output)
+
+			// The key check: no unescaped HTML tags should survive.
+			// html.EscapeString converts < to &lt; and > to &gt;,
+			// so any <tag> in the input becomes &lt;tag&gt; — safe text.
+			// We check for literal < followed by known dangerous tag names.
+			dangerousTags := []string{"<script", "<img", "<svg", "<iframe", "<object", "<embed"}
+			for _, tag := range dangerousTags {
+				if strings.Contains(lower, tag) {
+					t.Errorf("XSS: unescaped %s tag found in output for input %q\nOutput: %s", tag, tt.input, output)
+				}
+			}
+
+			// Check no javascript: protocol in an actual href attribute
+			// (not in escaped text). Only matters if we have a real <a tag.
+			if strings.Contains(lower, `href="javascript:`) {
+				t.Errorf("XSS: javascript: protocol in href for input %q\nOutput: %s", tt.input, output)
+			}
+
+			// Check that our own generated <a> tags (from urlRe) don't
+			// contain javascript: protocol
+			if strings.Contains(lower, `<a href="javascript:`) {
+				t.Errorf("XSS: generated <a> tag with javascript: protocol for input %q\nOutput: %s", tt.input, output)
+			}
+		})
+	}
+}

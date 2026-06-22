@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Runaho/cti-mcp/internal/store"
@@ -17,66 +17,52 @@ import (
 // (frequent 503s), so failures are expected and handled gracefully.
 type NVD struct{}
 
-func (s *NVD) Name() string    { return "nvd" }
+func (s *NVD) Name() string       { return "nvd" }
 func (s *NVD) TTL() time.Duration { return time.Hour }
+
+// fetchSequentially fetches all recent CVEs in a single request (no severity
+// filter) and filters client-side. NVD's severity filter params are unreliable
+// (cvssV3Severity=CRITICAL returns 503/404 randomly, cvssV4Severity same).
+// A plain date-range query is the only stable endpoint.
+func (s *NVD) fetchSequentially(ctx context.Context, start, end string) ([]store.CVE, error) {
+	return s.fetchEndpoint(ctx, "", "", start, end)
+}
 
 func (s *NVD) Fetch(ctx context.Context) (*FetchResult, error) {
 	now := time.Now().UTC()
 	start := now.Add(-24 * time.Hour).Format(time.RFC3339)
 	end := now.Format(time.RFC3339)
 
-	type fetchTask struct {
-		severity string
-		stype    string
+	cves, err := s.fetchSequentially(ctx, start, end)
+	if err != nil {
+		return &FetchResult{}, err
 	}
-
-	tasks := []fetchTask{
-		{"CRITICAL", "cvssV3Severity"},
-		{"CRITICAL", "cvssV4Severity"},
-		{"HIGH", "cvssV3Severity"},
-		{"HIGH", "cvssV4Severity"},
-	}
-
-	var (
-		mu   sync.Mutex
-		cves []store.CVE
-		wg   sync.WaitGroup
-	)
-
-	for _, task := range tasks {
-		wg.Add(1)
-		go func(t fetchTask) {
-			defer wg.Done()
-			result, err := s.fetchEndpoint(ctx, t.severity, t.stype, start, end)
-			if err != nil {
-				return // NVD failures are expected
-			}
-			mu.Lock()
-			cves = append(cves, result...)
-			mu.Unlock()
-		}(task)
-	}
-	wg.Wait()
 
 	if len(cves) == 0 {
-		return &FetchResult{}, fmt.Errorf("nvd: no data from any endpoint (likely 503)")
+		return &FetchResult{}, fmt.Errorf("nvd: no CVEs in 24h window")
 	}
 
 	return &FetchResult{CVEs: cves}, nil
 }
 
 func (s *NVD) fetchEndpoint(ctx context.Context, severity, stype, start, end string) ([]store.CVE, error) {
-	url := fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0/?%s=%s&pubStartDate=%s&pubEndDate=%s&resultsPerPage=50",
-		stype, severity, start, end)
+	var url string
+	if severity != "" && stype != "" {
+		url = fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0/?%s=%s&pubStartDate=%s&pubEndDate=%s&resultsPerPage=2000",
+			stype, severity, start, end)
+	} else {
+		// No severity filter — fetch all CVEs in date range, filter client-side.
+		// This is the only stable NVD endpoint; severity filters 503/404 randomly.
+		url = fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0/?pubStartDate=%s&pubEndDate=%s&resultsPerPage=2000",
+			start, end)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 	if key := nvdAPIKey(); key != "" {
-		q := req.URL.Query()
-		q.Set("apiKey", key)
-		req.URL.RawQuery = q.Encode()
+		req.Header.Set("apiKey", key)
 	}
 
 	resp, err := HTTPClient.Do(req)
@@ -104,7 +90,7 @@ func (s *NVD) fetchEndpoint(ctx context.Context, severity, stype, start, end str
 					Lang  string `json:"lang"`
 					Value string `json:"value"`
 				} `json:"descriptions"`
-				Metrics json.RawMessage `json:"metrics"`
+				Metrics    json.RawMessage `json:"metrics"`
 				Weaknesses []struct {
 					Description []struct {
 						Value string `json:"value"`
@@ -175,12 +161,12 @@ func (s *NVD) fetchEndpoint(ctx context.Context, severity, stype, start, end str
 			Published:   cve.Published,
 			HasPoC:      len(exploitRefs) > 0,
 			Data: store.CVEData{
-				Title:      firstLine(desc),
-				CVSSVector: vector,
-				CWE:        cweList,
-				References: refs,
+				Title:       firstLine(desc),
+				CVSSVector:  vector,
+				CWE:         cweList,
+				References:  refs,
 				ExploitRefs: exploitRefs,
-				NVDURL:     fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve.ID),
+				NVDURL:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve.ID),
 			},
 		})
 	}
@@ -227,5 +213,5 @@ func firstLine(s string) string {
 }
 
 func nvdAPIKey() string {
-	return "" // placeholder — future: os.Getenv("NVD_API_KEY")
+	return os.Getenv("NVD_API_KEY")
 }

@@ -49,19 +49,42 @@ func (m *Manager) buildStatus() map[string]any {
 		}
 	}
 
-	tokenStatus := "missing (rate limited to 60 req/h, set GITHUB_TOKEN for 5000 req/h)"
+	// Token / API key configuration
+	tokens := map[string]string{}
+
 	if os.Getenv("GITHUB_TOKEN") != "" {
-		tokenStatus = "set"
+		tokens["github_token"] = "set"
+	} else {
+		tokens["github_token"] = "missing (rate limited to 60 req/h, set GITHUB_TOKEN for 5000 req/h)"
+	}
+
+	if os.Getenv("NVD_API_KEY") != "" {
+		tokens["nvd_api_key"] = "set"
+	} else {
+		tokens["nvd_api_key"] = "missing (NVD rate limited to 5 req/30s rolling, set NVD_API_KEY for 50 req/30s). Request at https://nvd.nist.gov/developers/request-an-api-key"
+	}
+
+	// System warnings — empty means all good, non-empty means agent should review
+	warnings := []string{}
+	if os.Getenv("NVD_API_KEY") == "" {
+		warnings = append(warnings, "NVD_API_KEY not set — NVD fetches will be heavily rate limited and may fail")
+	}
+	if os.Getenv("GITHUB_TOKEN") == "" {
+		warnings = append(warnings, "GITHUB_TOKEN not set — GitHub sources limited to 60 req/h")
+	}
+	if cveCount == 0 {
+		warnings = append(warnings, "Database empty — call refresh_sources to populate initial data")
 	}
 
 	return map[string]any{
-		"github_token": tokenStatus,
+		"tokens":   tokens,
 		"cache": map[string]any{
 			"cves_count":  cveCount,
 			"kev_count":   kevCount,
 			"db_path":     os.Getenv("CTI_MCP_DB_PATH"),
 			"populated":   cveCount > 0,
 		},
-		"sources": sources,
+		"sources":  sources,
+		"warnings": warnings,
 	}
 }

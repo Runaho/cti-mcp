@@ -22,9 +22,10 @@ type FetchResult struct {
 	KEVEntries []store.KEVEntry
 }
 
-// HTTPClient is a shared HTTP client with reasonable timeouts.
+// HTTPClient is a shared HTTP client with generous timeouts.
+// NVD API 2.0 can take 30+ seconds per request without an API key.
 var HTTPClient = &http.Client{
-	Timeout: 20 * time.Second,
+	Timeout: 45 * time.Second,
 }
 
 // GitHubToken returns the GitHub API token from the environment, if set.

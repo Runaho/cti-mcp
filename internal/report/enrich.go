@@ -31,17 +31,23 @@ func md2html(text string) string {
 	if text == "" {
 		return ""
 	}
+	// Escape ALL HTML entities first — prevents XSS from CVE descriptions
+	// that may contain <script>, <img onerror>, or other injected HTML.
+	// Markdown syntax (*, `, #, -, https://) is not affected by HTML escaping.
+	text = html.EscapeString(text)
+	// Note: input is already HTML-escaped above, so no need to escape
+	// again inside code blocks — that would cause double-escaping.
 	text = codeBlockRe.ReplaceAllStringFunc(text, func(m string) string {
 		subs := codeBlockRe.FindStringSubmatch(m)
 		if len(subs) >= 3 {
-			return "<pre><code>" + html.EscapeString(subs[2]) + "</code></pre>"
+			return "<pre><code>" + subs[2] + "</code></pre>"
 		}
 		return m
 	})
 	text = inlineCodeRe.ReplaceAllStringFunc(text, func(m string) string {
 		subs := inlineCodeRe.FindStringSubmatch(m)
 		if len(subs) >= 2 {
-			return "<code>" + html.EscapeString(subs[1]) + "</code>"
+			return "<code>" + subs[1] + "</code>"
 		}
 		return m
 	})

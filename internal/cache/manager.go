@@ -108,12 +108,12 @@ func (m *Manager) RefreshSource(ctx context.Context, name string) error {
 }
 
 func (m *Manager) refreshSource(ctx context.Context, src sources.Source) error {
-	// Skip if already running
+	// Skip if already running — but report it honestly, not as success
 	m.mu.Lock()
 	if m.running[src.Name()] {
 		m.mu.Unlock()
 		m.logger.Debug("source already fetching, skipping", "source", src.Name())
-		return nil
+		return fmt.Errorf("source %s is already fetching, skipping", src.Name())
 	}
 	m.running[src.Name()] = true
 	m.mu.Unlock()

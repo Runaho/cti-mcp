@@ -1,160 +1,83 @@
 # CTI MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server that provides real-time Cyber Threat Intelligence — CVEs, CISA KEV entries, exploit data, and vulnerability reports from multiple sources.
+Cyber Threat Intelligence MCP server — provides real-time CVE and threat intelligence data from multiple sources via the Model Context Protocol.
 
-Plug it into **Claude Desktop**, **Cursor**, **Hermes**, or any MCP-compatible client.
+## Sources
 
-## Features
-
-- **5 data sources**: CISA KEV, GitHub Security Advisory, GitHub PoC repos, NVD API, OSV.dev
-- **SQLite cache** with background refresh — no rate limits, no repeated API calls
-- **8 MCP tools**: query CVEs, search vulnerabilities, get KEV entries, generate HTML reports
-- **Self-contained HTML report** — neobrutalism design, works offline
-- **Pure Go** — single static binary, no CGO, no runtime dependencies
-
-## Install
-
-### Option 1: `go install` (requires Go 1.25+)
-
-```bash
-go install github.com/Runaho/cti-mcp/cmd/cti-mcp@latest
-```
-
-### Option 2: Homebrew
-
-```bash
-brew install runaho/tap/cti-mcp
-```
-
-### Option 3: Docker
-
-```bash
-docker run -d --name cti-mcp \
-  -e GITHUB_TOKEN=ghp_xxxxx \
-  -v cti-data:/data \
-  ghcr.io/runaho/cti-mcp:latest
-```
-
-### Option 4: Download binary
-
-Grab the latest release from [GitHub Releases](https://github.com/Runaho/cti-mcp/releases).
-
-## Configuration
-
-### Claude Desktop
-
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "cti": {
-      "command": "cti-mcp",
-      "env": {
-        "GITHUB_TOKEN": "ghp_xxxxx"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to your MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "cti": {
-      "command": "cti-mcp",
-      "env": {
-        "GITHUB_TOKEN": "ghp_xxxxx"
-      }
-    }
-  }
-}
-```
-
-### Hermes
-
-```yaml
-# ~/.hermes/config.yaml
-mcp_servers:
-  cti:
-    command: cti-mcp
-    env:
-      GITHUB_TOKEN: "ghp_xxxxx"
-```
+| Source | Type | Auth Required |
+|--------|------|---------------|
+| CISA KEV | Known Exploited Vulnerabilities | No |
+| GitHub Advisory | Vulnerability database | `GITHUB_TOKEN` (recommended) |
+| NVD | National Vulnerability Database | `NVD_API_KEY` (recommended) |
+| OSV.dev | Open Source Vulnerabilities | No |
+| GitHub PoC | Proof-of-concept exploits | `GITHUB_TOKEN` (recommended) |
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GITHUB_TOKEN` | (none) | GitHub API token. Without it, rate limited to 60 req/h. With it, 5000 req/h. **Strongly recommended.** |
-| `CTI_MCP_DB_PATH` | `~/.cti-mcp/cti.db` | SQLite database path |
-| `CTI_MCP_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NVD_API_KEY` | Recommended | NVD API 2.0 key. Without it: 5 req/30s rolling (frequent 503s). With it: 50 req/30s. Request at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key) |
+| `GITHUB_TOKEN` | Recommended | GitHub PAT. Without it: 60 req/h. With it: 5000 req/h |
+| `CTI_MCP_DB_PATH` | Optional | Custom SQLite database path |
 
-## Tools
+### Getting API Keys
 
-| Tool | Parameters | Description |
-|------|-----------|-------------|
-| `get_recent_cves` | `hours`, `severity`, `limit` | Recent CVEs within a time window |
-| `get_kev_entries` | `recent_days`, `limit` | CISA KEV catalog — actively exploited vulnerabilities |
-| `get_cve_details` | `cve_id` | Full details for a specific CVE |
-| `search_vulnerabilities` | `keyword`, `product`, `cwe`, `limit` | Search by keyword, product, or CWE |
-| `get_exploited` | `limit` | CVEs that are in KEV and/or have PoC code |
-| `generate_report` | `hours`, `format` | Full HTML threat intelligence report |
-| `get_status` | — | Server health, cache status, token config |
-| `refresh_sources` | `source` | Force refresh data from sources |
+**NVD API Key:**
+1. Visit https://nvd.nist.gov/developers/request-an-api-key
+2. Fill out the form (free, takes ~5 minutes)
+3. You'll receive the key via email
+4. Set it: `export NVD_API_KEY="your-key-here"`
 
-## How It Works
+**GitHub Token:**
+1. Visit https://github.com/settings/tokens
+2. Create a fine-grained or classic PAT (no special scopes needed for public data)
+3. Set it: `export GITHUB_TOKEN="ghp_your-token-here"`
 
+## Health Check
+
+The `get_status` MCP tool provides a complete system overview:
+
+```json
+{
+  "tokens": {
+    "github_token": "set",
+    "nvd_api_key": "set"
+  },
+  "cache": {
+    "cves_count": 4823,
+    "kev_count": 1247,
+    "populated": true
+  },
+  "sources": {
+    "nvd": { "status": "ok", "entry_count": 3421 },
+    "osv": { "status": "ok", "entry_count": 1287 }
+  },
+  "warnings": []
+}
 ```
-MCP Client (Claude/Cursor/Hermes)
-        │ stdio (JSON-RPC)
-        ▼
-   cti-mcp Server
-   ├── 8 MCP Tools
-   ├── Background Cache (goroutines)
-   │   ├── CISA KEV     → every 1h
-   │   ├── GitHub Adv   → every 30m
-   │   ├── GitHub PoC   → every 2h
-   │   ├── NVD          → every 1h
-   │   └── OSV.dev      → every 1h
-   └── SQLite Store (~/.cti-mcp/cti.db)
-       ├── cves         (JSON blob + indexed columns)
-       ├── kev_entries
-       └── source_health
-```
 
-Data is cached in SQLite with TTL-based background refresh. The first call after startup may be slightly slow while the cache populates. Use `get_status` to check progress.
+### AI Agent Workflow
 
-## Data Sources
+**Before any data-heavy operation** (`refresh_sources`, `generate_report`, bulk queries), AI agents **must** call `get_status` first:
 
-| Source | URL | Refresh | Notes |
-|--------|-----|---------|-------|
-| CISA KEV | `cisa.gov/known_exploited_vulnerabilities.json` | 1h | Always available, ~1600+ entries |
-| GitHub Advisory | `api.github.com/advisories` | 30m | CRITICAL + HIGH, needs token for rate limits |
-| GitHub PoC | `api.github.com/search/repositories` | 2h | Exploit/PoC repos with CVE IDs |
-| NVD API 2.0 | `services.nvd.nist.gov/rest/json/cves/2.0` | 1h | Frequent 503s, fallback sources compensate |
-| OSV.dev | `api.osv.dev/v1/query` | 1h | Go, PyPI, npm, Maven ecosystems |
+1. **`warnings` is empty** → all clear, proceed normally
+2. **`warnings` is non-empty** → review them and decide: proceed anyway (sources work without keys, just slower) or ask the user to provide missing keys for better results
 
-## Development
+This prevents wasted work on rate-limited or misconfigured systems.
+
+## Build & Run
 
 ```bash
 # Build
 go build -o cti-mcp ./cmd/cti-mcp
 
-# Test
-go test ./...
-
-# Run locally
-./cti-mcp serve
-
-# Run with custom DB path
-CTI_MCP_DB_PATH=/tmp/test.db ./cti-mcp serve
+# Run (stdio MCP transport)
+NVD_API_KEY="your-key" GITHUB_TOKEN="your-token" ./cti-mcp
 ```
 
-## License
+## Architecture
 
-MIT
+- **Database:** SQLite (pure-Go `modernc.org/sqlite`, no CGO)
+- **Transport:** MCP stdio
+- **Caching:** Background refresh with per-source TTL
+- **Sources:** 5 independent providers, each with health tracking

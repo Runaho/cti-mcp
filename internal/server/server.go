@@ -17,19 +17,30 @@ const instructions = `CTI MCP Server — Cyber Threat Intelligence
 
 This server provides real-time CVE and threat intelligence data from multiple sources (CISA KEV, GitHub Advisory, NVD, OSV.dev, GitHub PoC repos).
 
+IMPORTANT — Pre-flight Check:
+Before calling refresh_sources, generate_report, or any data-heavy operation, call get_status first.
+This returns token configuration, source health, and a "warnings" array.
+If "warnings" is empty, everything is configured and ready.
+If "warnings" is non-empty, review them and use your judgment: you may proceed anyway
+(sources without API keys still work, just slower), or you may ask the user to provide
+missing keys for better results. The decision is yours.
+
 Available tools:
+- get_status: Check server health, token/API key config, source availability, and warnings. Call this FIRST.
 - get_recent_cves: Get recent CVEs within a time window, filtered by severity
 - get_kev_entries: Get CISA KEV (Known Exploited Vulnerabilities) catalog entries
 - get_cve_details: Get full details for a specific CVE by ID (fetches on-demand if missing)
 - search_vulnerabilities: Search CVEs by keyword, product name, or CWE ID
 - get_exploited: Get CVEs that are actively exploited (in KEV) and/or have PoC code
 - generate_report: Generate a full HTML threat intelligence report
-- get_status: Check server health, cache status, token configuration, and source availability
 - refresh_sources: Force refresh data from all or specific sources
 
-Data is cached in SQLite with background refresh. First call after startup may be slow while the cache populates.
+Environment Variables:
+- NVD_API_KEY: NVD API key (recommended). Without it, NVD fetches are rate-limited to 5 req/30s and frequently fail. Request at https://nvd.nist.gov/developers/request-an-api-key
+- GITHUB_TOKEN: GitHub personal access token. Without it, GitHub sources are limited to 60 req/h instead of 5000/h.
+- CTI_MCP_DB_PATH: Custom SQLite database path (optional, defaults to embedded location).
 
-If GITHUB_TOKEN is not set, GitHub API calls are rate-limited to 60/hour. Use get_status to check configuration.`
+Data is cached in SQLite with background refresh. First call after startup may be slow while the cache populates.`
 
 type Server struct {
 	store   *store.Store
