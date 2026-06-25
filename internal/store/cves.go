@@ -194,15 +194,27 @@ func SearchCVEs(db *sql.DB, keyword, product, cwe string, limit int) ([]CVE, err
 }
 
 // QueryExploitedCVEs returns CVEs that are in KEV or have PoC, sorted by score.
-func QueryExploitedCVEs(db *sql.DB, limit int) ([]CVE, error) {
+// If sinceHours > 0, filters to CVEs published within that time window.
+func QueryExploitedCVEs(db *sql.DB, limit int, sinceHours int) ([]CVE, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
 
-	rows, err := db.Query(`SELECT cve_id, provider, providers, data, description, description_html,
+	q := `SELECT cve_id, provider, providers, data, description, description_html,
 			first_seen, last_updated, severity, score, in_kev, has_poc, published, category
-		FROM cves WHERE in_kev = 1 OR has_poc = 1
-		ORDER BY score DESC, last_updated DESC LIMIT ?`, limit)
+		FROM cves WHERE in_kev = 1 OR has_poc = 1`
+	args := []any{}
+
+	if sinceHours > 0 {
+		cutoff := time.Now().UTC().Add(-time.Duration(sinceHours) * time.Hour).Format(time.RFC3339)
+		q += " AND published >= ?"
+		args = append(args, cutoff)
+	}
+
+	q += " ORDER BY score DESC, last_updated DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := db.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query exploited cves: %w", err)
 	}
