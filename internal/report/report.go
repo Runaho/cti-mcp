@@ -15,14 +15,18 @@ func BuildReport(db *store.Store, hours int) (*CTIReport, error) {
 		hours = 24
 	}
 
-	// Query all CVEs (no time filter for now — report shows everything in cache)
-	cves, err := store.QueryCVEs(db.DB(), "", 0, 500)
+	// Query CVEs within the time window
+	cves, err := store.QueryCVEs(db.DB(), "", hours, 500)
 	if err != nil {
 		return nil, fmt.Errorf("query cves: %w", err)
 	}
 
-	// Query KEV entries (last 30 days)
-	kevEntries, err := store.QueryKEV(db.DB(), 30, 200)
+	// Query KEV entries within the time window (convert hours to days, minimum 1)
+	kevDays := hours / 24
+	if kevDays < 1 {
+		kevDays = 1
+	}
+	kevEntries, err := store.QueryKEV(db.DB(), kevDays, 200)
 	if err != nil {
 		return nil, fmt.Errorf("query kev: %w", err)
 	}
