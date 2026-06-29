@@ -5,12 +5,21 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Runaho/cti-mcp/internal/sources"
 	"github.com/Runaho/cti-mcp/internal/store"
 )
 
+// TestRenderWithRealData is an integration test that fetches the live CISA
+// KEV catalog from the network. It is skipped under `go test -short` so the
+// unit suite (including TestRenderWithSyntheticData below) stays
+// deterministic and offline.
 func TestRenderWithRealData(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: requires network access to CISA KEV")
+	}
+
 	s, err := store.NewStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
@@ -42,8 +51,9 @@ func TestRenderWithRealData(t *testing.T) {
 		store.UpsertKEV(s.DB(), kev)
 	}
 
-	// Generate report
-	html, err := GenerateHTML(s, 8760) // 1 year = no effective filter for test data
+	// 1 year window: effectively no time filter, ensures the test stays
+	// stable as the live KEV catalog ages.
+	html, err := GenerateHTML(s, 8760)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,14 +68,79 @@ func TestRenderWithRealData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Report generated: %d bytes → %s", len(html), tmpFile)
+	t.Logf("Report generated: %d bytes -> %s", len(html), tmpFile)
 
-	// Basic structure checks
 	if !strings.Contains(html, "<html") {
 		t.Error("missing <html tag")
 	}
 	if !strings.Contains(html, "CVE-") {
 		t.Error("no CVE IDs in report")
+	}
+}
+
+// TestRenderWithSyntheticData covers the HTML render path with no network
+// dependency. It is the offline counterpart of TestRenderWithRealData and
+// runs under `go test -short`.
+func TestRenderWithSyntheticData(t *testing.T) {
+	s, err := store.NewStore(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	if err := store.InitSchema(s.DB()); err != nil {
+		t.Fatal(err)
+	}
+
+	cves := []store.CVE{
+		{
+			CVEID:     "CVE-2026-9001",
+			Provider:  "nvd",
+			Severity:  "CRITICAL",
+			Score:     9.8,
+			InKEV:     true,
+			HasPoC:    true,
+			Published: time.Now().UTC().Format(time.RFC3339),
+		},
+		{
+			CVEID:     "CVE-2026-9002",
+			Provider:  "nvd",
+			Severity:  "HIGH",
+			Score:     8.1,
+			InKEV:     false,
+			HasPoC:    false,
+			Published: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+	for _, c := range cves {
+		if err := store.UpsertCVE(s.DB(), c); err != nil {
+			t.Fatalf("upsert %s: %v", c.CVEID, err)
+		}
+	}
+
+	kev := store.KEVEntry{
+		CVEID:         "CVE-2026-9001",
+		VendorProduct: "demo/example",
+		VulnName:      "Demo SQL injection",
+		DateAdded:     time.Now().UTC().Format("2006-01-02"),
+		RequiredAction: "Apply vendor patch",
+	}
+	if err := store.UpsertKEV(s.DB(), kev); err != nil {
+		t.Fatalf("upsert kev: %v", err)
+	}
+
+	html, err := GenerateHTML(s, 8760)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(html) == 0 {
+		t.Fatal("report HTML is empty")
+	}
+	if !strings.Contains(html, "<html") {
+		t.Error("missing <html tag")
+	}
+	if !strings.Contains(html, "CVE-2026-9001") {
+		t.Error("expected synthetic CVE-2026-9001 in report")
 	}
 }
 
