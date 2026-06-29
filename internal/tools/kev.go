@@ -16,7 +16,8 @@ type KEVInput struct {
 }
 
 type ExploitedInput struct {
-	Limit *int `json:"limit,omitempty" jsonschema:"max results (default 20, max 100)"`
+	Limit      *int `json:"limit,omitempty" jsonschema:"max results (default 20, max 100)"`
+	SinceHours *int `json:"since_hours,omitempty" jsonschema:"time window in hours (0 for all time, default 0)"`
 }
 
 func (m *Manager) registerKEV(s *mcp.Server) {
@@ -61,8 +62,12 @@ func (m *Manager) registerKEV(s *mcp.Server) {
 				limit = 100
 			}
 		}
+		sinceHours := 0
+		if in.SinceHours != nil {
+			sinceHours = *in.SinceHours
+		}
 
-		cves, err := store.QueryExploitedCVEs(m.store.DB(), limit)
+		cves, err := store.QueryExploitedCVEs(m.store.DB(), limit, sinceHours)
 		if err != nil {
 			return nil, nil, err
 		}

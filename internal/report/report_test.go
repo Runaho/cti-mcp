@@ -43,7 +43,7 @@ func TestRenderWithRealData(t *testing.T) {
 	}
 
 	// Generate report
-	html, err := GenerateHTML(s, 24)
+	html, err := GenerateHTML(s, 8760) // 1 year = no effective filter for test data
 	if err != nil {
 		t.Fatal(err)
 	}
