@@ -41,11 +41,11 @@ Get recent CVEs within a time window, filtered by severity.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `hours` | int | 24 | Time window in hours |
-| `severity` | string | ALL | Filter: CRITICAL, HIGH, MEDIUM, LOW, ALL |
+| `severity` | string | ALL | Single severity value: CRITICAL, HIGH, MEDIUM, LOW, or ALL |
 | `limit` | int | 20 | Max results (max 100) |
 
 ```json
-{ "hours": 24, "severity": "CRITICAL,HIGH", "limit": 50 }
+{ "hours": 24, "severity": "CRITICAL", "limit": 50 }
 ```
 
 ### `get_kev_entries`
@@ -73,12 +73,12 @@ Get highest-risk CVEs: actively exploited (KEV) and/or have public PoC exploit c
 ```
 
 ### `generate_report`
-Generate a full HTML threat intelligence report with sectors, filters, KEV entries, and CVE details.
+Generate a threat intelligence report. By default returns a self-contained HTML document suitable for browser viewing or saving to a file. Pass `format: markdown` to receive a plain Markdown summary suitable for chat delivery or terminal preview.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `hours` | int | 24 | Time window in hours |
-| `format` | string | html | Output format: html or markdown |
+| `format` | string | html | Output format: `html` (self-contained HTML report) or `markdown` (plain text summary) |
 
 ```json
 { "hours": 24, "format": "html" }
