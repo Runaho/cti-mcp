@@ -250,11 +250,20 @@ func BuildReport(db *store.Store, hours int) (*CTIReport, error) {
 	return report, nil
 }
 
-// GenerateHTML builds and renders the full HTML report.
+// GenerateHTML builds the report and renders it as HTML.
 func GenerateHTML(db *store.Store, hours int) (string, error) {
 	report, err := BuildReport(db, hours)
 	if err != nil {
 		return "", err
 	}
-	return Render(report)
+	return RenderHTML(report)
+}
+
+// GenerateMarkdown builds the report and renders it as Markdown.
+func GenerateMarkdown(db *store.Store, hours int) (string, error) {
+	report, err := BuildReport(db, hours)
+	if err != nil {
+		return "", err
+	}
+	return RenderMarkdown(report)
 }

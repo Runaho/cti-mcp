@@ -16,20 +16,35 @@ type ReportInput struct {
 func (m *Manager) registerReport(s *mcp.Server) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "generate_report",
-		Description: "Generate a full HTML threat intelligence report with sectors, filters, KEV entries, and CVE details. Returns self-contained HTML suitable for viewing in a browser or saving to a file.",
+		Description: "Generate a full threat intelligence report. Returns either a self-contained HTML report (default, suitable for viewing in a browser or saving to a file) or a plain Markdown summary (suitable for chat delivery or text preview).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in ReportInput) (*mcp.CallToolResult, any, error) {
 		hours := 24
 		if in.Hours != nil {
 			hours = *in.Hours
 		}
 
-		html, err := report.GenerateHTML(m.store, hours)
-		if err != nil {
-			return nil, nil, err
+		format := "html"
+		if in.Format != nil && *in.Format != "" {
+			format = *in.Format
 		}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: html}},
-		}, nil, nil
+		switch format {
+		case "markdown", "md":
+			md, err := report.GenerateMarkdown(m.store, hours)
+			if err != nil {
+				return nil, nil, err
+			}
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: md}},
+			}, nil, nil
+		default:
+			html, err := report.GenerateHTML(m.store, hours)
+			if err != nil {
+				return nil, nil, err
+			}
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: html}},
+			}, nil, nil
+		}
 	})
 }

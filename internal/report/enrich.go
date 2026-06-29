@@ -256,8 +256,8 @@ func assignPriority(inKEV, hasPoC bool, score float64) string {
 	return "P3"
 }
 
-// Render generates the HTML report from a CTIReport struct.
-func Render(r *CTIReport) (string, error) {
+// RenderHTML generates the HTML report from a CTIReport struct.
+func RenderHTML(r *CTIReport) (string, error) {
 	funcMap := template.FuncMap{
 		"upper":      strings.ToUpper,
 		"lower":      strings.ToLower,
