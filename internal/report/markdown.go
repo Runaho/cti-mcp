@@ -74,7 +74,7 @@ func RenderMarkdown(r *CTIReport) (string, error) {
 			if vendor == "" {
 				vendor = "unknown"
 			}
-			action := strings.TrimSpace(k.RequiredAction)
+			action := escapePipe(strings.TrimSpace(k.RequiredAction))
 			if action == "" {
 				action = "Apply mitigations per vendor guidance"
 			}

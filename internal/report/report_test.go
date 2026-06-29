@@ -42,13 +42,17 @@ func TestRenderWithRealData(t *testing.T) {
 		if i >= 20 {
 			break
 		}
-		store.UpsertCVE(s.DB(), cve)
+		if err := store.UpsertCVE(s.DB(), cve); err != nil {
+			t.Fatalf("upsert cve %s: %v", cve.CVEID, err)
+		}
 	}
 	for i, kev := range result.KEVEntries {
 		if i >= 20 {
 			break
 		}
-		store.UpsertKEV(s.DB(), kev)
+		if err := store.UpsertKEV(s.DB(), kev); err != nil {
+			t.Fatalf("upsert kev %s: %v", kev.CVEID, err)
+		}
 	}
 
 	// 1 year window: effectively no time filter, ensures the test stays

@@ -141,6 +141,30 @@ func TestRenderMarkdown_SectorFallbackURL(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdown_KEVRequiredActionPipeEscaped(t *testing.T) {
+	r := &CTIReport{
+		Meta: Meta{GeneratedAt: "2026-06-29T12:00:00Z", WindowHours: 24},
+		KEVRecent: []KEV{
+			{
+				CVEID:          "CVE-2026-4004",
+				VendorProduct:  "demo/vendor",
+				DateAdded:      "2026-06-28",
+				RequiredAction: "Apply | restart service | verify",
+			},
+		},
+	}
+	out, err := RenderMarkdown(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `Apply \| restart service \| verify`) {
+		t.Error("expected pipe characters in RequiredAction to be escaped")
+	}
+	if strings.Contains(out, "Apply | restart service | verify") {
+		t.Error("un-escaped pipe in RequiredAction would break the markdown row")
+	}
+}
+
 func TestRenderMarkdown_NilReport(t *testing.T) {
 	if _, err := RenderMarkdown(nil); err == nil {
 		t.Error("expected error when CTIReport is nil")

@@ -135,16 +135,19 @@ func TestQueryExploitedCVEs_Regression(t *testing.T) {
 		}
 	})
 
-	t.Run("limit>500 clamps to 500", func(t *testing.T) {
-		// Upper bound: limit > 500 must clamp to 500. With only 4 rows in
-		// the DB we can't directly observe the clamp either, but the query
-		// must succeed and return rows.
+	t.Run("limit>500 falls back to default 50", func(t *testing.T) {
+		// QueryExploitedCVEs treats limit > 500 as invalid and falls back
+		// to the default 50, the same way limit <= 0 does. The query must
+		// succeed and return rows; with only 4 rows in the DB we can't
+		// observe the effective limit directly, but we can assert that
+		// the call did not error and returned the same rows as the
+		// default-limit case.
 		got, err := QueryExploitedCVEs(s.DB(), 1000, 72)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(got) != 2 {
-			t.Errorf("expected 2 rows with limit=1000 (clamped), got %d", len(got))
+			t.Errorf("expected 2 rows with limit=1000 (fallback to default), got %d", len(got))
 		}
 	})
 
