@@ -199,7 +199,7 @@ body{
 summary{
   padding:14px 20px;cursor:pointer;font-weight:700;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.82rem;
-  transition:background .1s;
+  transition:background .1s;overflow-wrap:anywhere;word-break:break-word;min-width:0;
 }
 summary:hover{background:var(--bg2)}
 summary::-webkit-details-marker{display:none}
@@ -219,7 +219,7 @@ details[open] summary::before{content:'-'}
 .badge.gh{background:#9333ea}
 .badge.cat{background:#006666;color:#fff}
 .cve-id{font-family:inherit;font-weight:900;font-size:.86rem}
-.cve-title{font-size:.78rem;color:var(--text2);width:100%;margin-top:4px;line-height:1.5;font-weight:600}
+.cve-title{font-size:.78rem;color:var(--text2);width:100%;margin-top:4px;line-height:1.5;font-weight:600;overflow-wrap:anywhere;word-break:break-word;min-width:0}
 .cve-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .cve-meta .meta-tag{font-size:.66rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
 
