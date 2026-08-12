@@ -200,9 +200,12 @@ func QueryExploitedCVEs(db *sql.DB, limit int, sinceHours int) ([]CVE, error) {
 		limit = 50
 	}
 
+	// Parens required: (in_kev OR has_poc) AND published >= cutoff.
+	// Without parens, AND binds tighter than OR and the time filter is
+	// only applied to has_poc rows, letting stale in_kev rows slip through.
 	q := `SELECT cve_id, provider, providers, data, description, description_html,
-			first_seen, last_updated, severity, score, in_kev, has_poc, published, category
-		FROM cves WHERE in_kev = 1 OR has_poc = 1`
+		first_seen, last_updated, severity, score, in_kev, has_poc, published, category
+		FROM cves WHERE (in_kev = 1 OR has_poc = 1)`
 	args := []any{}
 
 	if sinceHours > 0 {
